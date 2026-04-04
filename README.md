@@ -24,8 +24,8 @@ pip install ppocr-lite[fast]  # + scipy for faster CC labelling
 Models (PP-OCRv5 mobile det/rec + v2 direction cls) can be auto-downloaded to `~/.cache/ppocr_lite/` on
 first use, or manually downloaded and configured.
 
-**Automatically downloaded models** come from [RapidOCR](https://github.com/RapidAI/RapidOCR/tree/main); for 
-details on where those models are hosted, refer to [their configuration](https://github.com/RapidAI/RapidOCR/blob/main/python/rapidocr/default_models.yaml).
+**Automatically downloaded models** come from [RapidOCR](https://github.com/RapidAI/RapidOCR/tree/main) and are downloaded from huggingface 
+(see [here](ppocr_lite/models.py) for details).
 
 To **manually download models** see [their huggingface](https://huggingface.co/monkt/paddleocr-onnx) - you'll 
 need one `det.onnx` (for text detection), one `rec.onnx` (for text recognition) and the corresponding `dict.txt` 

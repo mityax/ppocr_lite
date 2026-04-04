@@ -85,7 +85,7 @@ class PPOCRLite:
         try:
             self._decoder = _build_decoder(self._rec_session.session)
         except RuntimeError:
-            self._decoder = CTCDecoder.from_file(config.dict_path)
+            self._decoder = CTCDecoder.from_file(cfg.dict_path)
 
     # ------------------------------------------------------------------
     # Public interface

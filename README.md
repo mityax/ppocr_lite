@@ -102,3 +102,11 @@ assume it doesn't work nearly as well on inputs like perspective-distorted real-
 
 * No perspective correction
 * Direction classifier is only a 0°/180° binary; no 90°/270° support.
+
+---
+
+## License
+
+This project is GPL-3.0-or-later licensed. Note that the licenses of models
+(self-brought or auto-downloaded) will likely differ; refer to their creators
+for more information.

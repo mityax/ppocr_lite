@@ -172,17 +172,6 @@ class PPOCRLite:
     def _detect(self, img: np.ndarray) -> np.ndarray:
         h, w = img.shape[:2]
 
-        # --- Choose detection input size --------------------------------
-        # Original code used limit_type="min", which *upscales* the image so
-        # the SHORT side reaches `limit`.  On a 1920×1080 screenshot with
-        # limit=2000 that blows the tensor up to ~3 550×1 984 — 3.4× more
-        # pixels than necessary and the single biggest runtime cost.
-        #
-        # New policy:
-        #   • Tiny images (short side < 960): upscale so the short side
-        #     reaches 960 — keeps small captures readable for the detector.
-        #   • Everything else: cap the LONG side (no upscaling) so large
-        #     screenshots are fed at roughly native resolution.
         if min(h, w) < 960:
             pre = DetPreProcess(limit_side_len=960, limit_type="min")
         else:

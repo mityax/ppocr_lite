@@ -16,7 +16,6 @@ class ClsPreProcess:
     """Resize to (C, 48, 192) and normalise to [-1, 1].
 
     Normalisation: (x/255 − 0.5)/0.5  ≡  x × (1/127.5) − 1
-    A single fused multiply-add replaces the original two-step pipeline.
     """
 
     HEIGHT = 48

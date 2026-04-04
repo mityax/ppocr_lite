@@ -34,7 +34,6 @@ class RecPreProcess:
         (matching PaddleOCR's batching logic) but capped at MAX_WIDTH.
 
         Normalisation: (x/255 − 0.5)/0.5  ≡  x × (1/127.5) − 1
-        A single fused multiply-add replaces the original three-step pipeline.
         """
         h, w = img.shape[:2]
         img_w    = min(int(self.HEIGHT * max_wh_ratio), self.MAX_WIDTH)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import urllib.request
 import urllib.parse
 from dataclasses import dataclass, field
 from pathlib import Path

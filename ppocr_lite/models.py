@@ -15,7 +15,7 @@ _DET_URL = "https://huggingface.co/ilaylow/PP_OCRv5_mobile_onnx/resolve/main/ppo
 _REC_URL = "https://huggingface.co/ilaylow/PP_OCRv5_mobile_onnx/resolve/main/ppocrv5_rec.onnx?download=true"
 _DICT_URL = "https://huggingface.co/monkt/paddleocr-onnx/resolve/main/languages/chinese/dict.txt?download=true"  # appears to be the appropriate dict for the above _REC_URL
 
-_DEFAULT_CACHE = Path.home() / ".cache" / "ppocr_lite"
+_cache_dir = Path.home() / ".cache" / "ppocr_lite"
 
 
 @dataclass
@@ -43,7 +43,7 @@ class ModelConfig:
     rec_model: Path | None = None
     cls_model: Path | None | bool = None  # False = disabled
     dict_path: Path | None = None
-    cache_dir: Path = field(default_factory=lambda: _DEFAULT_CACHE)
+    cache_dir: Path = field(default_factory=lambda: _cache_dir)
 
     def resolve(self) -> "ModelConfig":
         """Return a copy with all ``None`` paths replaced by downloaded files."""
@@ -68,12 +68,54 @@ class ModelConfig:
         )
 
 
+def list_downloaded_models():
+    """
+    List all models present in the default cache directory.
+    """
+    return list(_cache_dir.iterdir())
+
+
+def download_default_models():
+    """
+    Download all default models to the default cache directory.
+    """
+    ModelConfig().resolve()
+
+
+def download_model(url: str, name: str | None = None):
+    """
+    Download a model from the given [url] to the default cache directory.
+
+    If [name] is given, it will be used as the file name; otherwise, the file name will be derived from [url].
+    """
+    _ensure(url, _cache_dir, name)
+
+
+def get_cache_directory():
+    """
+    Get the default cache directory.
+    """
+
+    return _cache_dir
+
+
+def set_cache_directory(pth: Path):
+    """
+    Change the default cache directory. This must be done before using the cache or built-in model
+    management.
+    """
+
+    global _cache_dir
+
+    _cache_dir = pth
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _ensure(url: str, cache_dir: Path) -> Path:
-    dest = cache_dir / Path(url).name
+def _ensure(url: str, cache_dir: Path, name: str | None = None) -> Path:
+    dest = cache_dir / (name or Path(url).name)
     if dest.exists():
         return dest
     print(f"[ppocr_lite] Downloading {dest.name} …", flush=True)

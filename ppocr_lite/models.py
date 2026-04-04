@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import urllib.request
+import urllib.parse
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -98,7 +98,7 @@ def get_default_model_names():
     """
     Return a list of all default model names.
     """
-    return [Path(url).name for url in (_DET_URL, _REC_URL, _DICT_URL)]
+    return [Path(urllib.parse.urlparse(url).path).name for url in (_DET_URL, _REC_URL, _DICT_URL)]
 
 
 def get_cache_directory():
@@ -125,7 +125,7 @@ def set_cache_directory(pth: Path):
 # ---------------------------------------------------------------------------
 
 def _ensure(url: str, cache_dir: Path, name: str | None = None) -> Path:
-    dest = cache_dir / (name or Path(url).name)
+    dest = cache_dir / (name or Path(urllib.parse.urlparse(url).path).name)
 
     dest.parent.mkdir(parents=True, exist_ok=True)
 

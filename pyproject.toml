@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ppocr_lite"
+version = "0.1.0"
+description = "Lightweight PP-OCR runtime – ONNX only, no OpenCV, no heavy frameworks"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+
+dependencies = [
+    "numpy>=1.21",
+    "Pillow>=9.0",
+    "onnxruntime>=1.16",
+]
+
+[project.optional-dependencies]
+# scipy.ndimage.label is significantly faster than the pure-Python BFS
+# fallback for large detection maps, but it is not required.
+fast = ["scipy>=1.9"]
+gpu  = ["onnxruntime-gpu>=1.16"]
+
+[tool.setuptools.packages.find]
+include = ["ppocr_lite*"]

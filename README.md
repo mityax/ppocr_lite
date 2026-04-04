@@ -35,7 +35,7 @@ quite well.
 
 ---
 
-## Quick start
+## Quick Start
 
 ```python
 from ppocr_lite import PPOCRLite
@@ -47,7 +47,7 @@ for result in ocr_engine.run("screenshot.png"):
     # result.box is a np.ndarray (4, 2) - top-left, top-right, bottom-right, bottom-left
 ```
 
-### Use your own models
+### Use Your Own Models
 
 ```python
 from ppocr_lite import PPOCRLite, ModelConfig
@@ -71,7 +71,27 @@ ocr_engine = PPOCRLite(providers=["CUDAExecutionProvider", "CPUExecutionProvider
 
 ---
 
-## Design notes
+## Manage Downloaded Models
+
+A few utility functions are available to configure from and to where models are downloaded:
+
+```python
+from ppocr_lite import models
+
+models.set_cache_directory("./my-cache-dir")
+models.get_cache_directory()  # -> pathlib.Path
+
+models.list_downloaded_models() # -> list[pathlib.Path]
+models.download_default_models()
+models.download_model("https://huggingface.co/me/my-repo/resolve/main/my-model.onnx?download=true")
+```
+
+Of course you are entirely free to not use the built-in model management functionality and instead do
+everything yourself – just configure your engine on initialization as described above.
+
+---
+
+## Design Notes
 
 This project is very similar to the excellent [RapidOCR](https://github.com/RapidAI/RapidOCR/tree/main),
 but more lightweight. Notably, it does not depend on OpenCV (which weighs around 200MB) and uses

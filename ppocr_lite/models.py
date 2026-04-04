@@ -94,6 +94,13 @@ def download_model(url: str, name: str | None = None):
     _ensure(url, _cache_dir, name)
 
 
+def get_default_model_names():
+    """
+    Return a list of all default model names.
+    """
+    return [Path(url).name for url in (_DET_URL, _REC_URL, _DICT_URL)]
+
+
 def get_cache_directory():
     """
     Get the default cache directory.

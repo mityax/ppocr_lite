@@ -68,10 +68,13 @@ class ModelConfig:
         )
 
 
-def list_downloaded_models():
+def list_downloaded_models() -> list[Path]:
     """
     List all models present in the default cache directory.
     """
+    if not _cache_dir.exists():
+        return []
+
     return list(_cache_dir.iterdir())
 
 
@@ -116,10 +119,16 @@ def set_cache_directory(pth: Path):
 
 def _ensure(url: str, cache_dir: Path, name: str | None = None) -> Path:
     dest = cache_dir / (name or Path(url).name)
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
     if dest.exists():
         return dest
+
     print(f"[ppocr_lite] Downloading {dest.name} …", flush=True)
+
     _download(url, dest)
+
     return dest
 
 

@@ -1,4 +1,4 @@
-"""ppocr_lite – a lightweight PP-OCR runtime built on onnxruntime + numpy + PIL.
+"""ppocr_lite – a lightweight PP-OCR runtime built on onnxruntime, numpy and PIL.
 
 No OpenCV, no deep-learning framework required.
 
@@ -13,7 +13,5 @@ Typical usage::
 """
 
 from .engine import PPOCRLite
-from .models import ModelConfig
-
-__all__ = ["PPOCRLite", "ModelConfig"]
-__version__ = "0.1.0"
+import models
+from .text_handling import arrange_text

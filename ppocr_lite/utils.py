@@ -12,6 +12,8 @@ from typing import List, Tuple, Union
 import numpy as np
 from PIL import Image
 
+from ppocr_lite.structs import BBox
+
 ImageInput = Union[str, Path, np.ndarray, "Image.Image"]
 
 
@@ -29,45 +31,23 @@ def load_image(src: ImageInput) -> np.ndarray:
     return np.array(pil, dtype=np.uint8)
 
 
-def crop_region(img: np.ndarray, box: np.ndarray) -> np.ndarray:
+def crop_region(img: np.ndarray, box: BBox) -> np.ndarray:
     """Crop the quadrilateral *box* (4×2 int, TL→TR→BR→BL) from *img*.
 
     For screenshots the boxes are almost always axis-aligned, so a
     simple bounding-rect crop is used.  A perspective warp would add a
     cv2 dependency for essentially zero benefit in this use-case.
     """
-    x0 = int(np.clip(box[:, 0].min(), 0, img.shape[1] - 1))
-    y0 = int(np.clip(box[:, 1].min(), 0, img.shape[0] - 1))
-    x1 = int(np.clip(box[:, 0].max(), 0, img.shape[1]))
-    y1 = int(np.clip(box[:, 1].max(), 0, img.shape[0]))
+    x0 = int(np.clip(box.x,  0, img.shape[1] - 1))
+    y0 = int(np.clip(box.y,  0, img.shape[0] - 1))
+    x1 = int(np.clip(box.x2, 0, img.shape[1]))
+    y1 = int(np.clip(box.y2, 0, img.shape[0]))
+
     crop = img[y0:y1, x0:x1]
     if crop.size == 0:
         # fall back to 1×1 black patch rather than empty array
         return np.zeros((1, 1, 3), dtype=np.uint8)
     return crop
-
-
-def sort_boxes(boxes: np.ndarray, y_thresh: int = 10) -> np.ndarray:
-    """Sort detected boxes reading-order: top-to-bottom, left-to-right.
-
-    Two boxes belong to the same "line" when their top-left y coordinates
-    differ by less than *y_thresh* pixels.
-    """
-
-    if len(boxes) == 0:
-        return boxes
-
-    y_coords = boxes[:, 0, 1]
-    y_order  = np.argsort(y_coords, kind="stable")
-    boxes_s  = boxes[y_order]
-    y_s      = y_coords[y_order]
-
-    dy = np.diff(y_s)
-    line_ids = np.concatenate([[0], np.cumsum(dy >= y_thresh)])
-
-    x_coords = boxes_s[:, 0, 0]
-    final    = np.lexsort((x_coords, line_ids))
-    return boxes_s[final]
 
 
 class FastONNXRunner:

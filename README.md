@@ -91,6 +91,36 @@ everything yourself – just configure your engine on initialization as describe
 
 ---
 
+## Optimized Path to Check Whether Text is Present
+
+To efficiently check whether a certain text is present in the image, use this function:
+
+```python
+res_first_text, res_second_text = ocr_engine.check_contains(
+    "./my-screenshot.png",
+    
+    # Phrases to look for:
+    ["This is some text", "some other text"],
+    
+    # Optionally, position hints can speed up the search by starting to recognize text
+    # close to them first; on images with much text, this can be a big boost:
+    position_hints=[
+        (0.5, 0.5),
+        (0.5, 0.6)
+    ],
+  
+    # You can control how far text can be from any given location hint. Text further away than this
+    # distance will be ignored; it basically tells the engine how precise your location hints are. 
+    # The value is relative to the shorter image side (0 - 1.0):
+    position_max_dist=0.3,
+    
+    # Fuzzy matching is supported; set to zero to disable:
+    fuzzy_match_min_similarity=0.8,
+)
+```
+
+---
+
 ## Design Notes
 
 This project is very similar to the excellent [RapidOCR](https://github.com/RapidAI/RapidOCR/tree/main),

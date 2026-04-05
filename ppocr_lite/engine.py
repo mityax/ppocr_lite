@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -12,15 +11,9 @@ from .classification import ClsPreProcess, apply_cls
 from .detection import DBPostProcess, DetPreProcess, _auto_limit
 from .models import ModelConfig
 from .recognition import CTCDecoder, RecPreProcess
-from .utils import ImageInput, crop_region, load_image, sort_boxes, log_perf, FastONNXRunner
-
-
-@dataclass
-class OCRResult:
-    """Single detected text region."""
-    text: str
-    score: float
-    box: np.ndarray  # (4, 2) int32  TL→TR→BR→BL
+from .structs import OCRResult, BBox
+from .text_handling import arrange_text, merge_phrase_boxes, merge_phrase_boxes_fuzzy
+from .utils import ImageInput, crop_region, load_image, log_perf, FastONNXRunner
 
 
 class PPOCRLite:
@@ -112,13 +105,12 @@ class PPOCRLite:
         in reading order (top-to-bottom, left-to-right).
         """
         img = load_image(image)
+
         with log_perf("_detect"):
             boxes = self._detect(img)
+
         if len(boxes) == 0:
             return []
-
-        with log_perf("sort_boxes"):
-            boxes = sort_boxes(boxes)
 
         with log_perf("crop_region[s]"):
             crops = [crop_region(img, box) for box in boxes]
@@ -144,9 +136,7 @@ class PPOCRLite:
         if len(boxes) == 0:
             return []
 
-        boxes = sort_boxes(boxes)
-
-        boxes = filter_boxes_and_sort_by_position(
+        boxes = filter_boxes_and_sort_by_proximity(
             boxes,
             tuple((t[0] * img.shape[1], t[1] * img.shape[0]) for t in positions),
             max_dist=max_dist * np.min(img.shape[:2])
@@ -182,12 +172,113 @@ class PPOCRLite:
             if t.strip()
         ]
 
+    def check_contains(self, image: ImageInput, phrases: list[str],
+                       position_hints: list[tuple[float, float]] | None = None, position_max_dist: float | None = None,
+                       fuzzy_match_min_similarity: float = 0.9,
+                       line_cy_threshold: float = 0.2, word_dist_threshold: float = 5.0) -> list[OCRResult | None]:
+        """
+        For each phrase in [phrases], check whether the phrase is found in the given image.
+
+        Parameters
+        ----------
+        phrases:
+            A list of phrases to search for (newlines in a phrase are not supported).
+        position_hints:
+            Helps to search more efficiently by recognizing boxes close to a position hint first. Given in
+            coordinates relative to the image size [0-1].
+        position_max_dist:
+            If given, boxes whose center is further away from any location hint than [location_max_dist]
+            will be ignored. This value is relative to the shorter image side.
+        fuzzy_match_min_similarity:
+            If greater than 0, fall back to fuzzy string matching if an exact match is not found. Can be
+            set to a value between 0 and 1, indicating the allowed mismatch ratio (as interpreted by
+            difflib.SequenceMatcher).
+        line_cy_threshold:
+            The maximum allowed vertical distance between word center points in one line, relative to line
+            height.
+        word_dist_threshold:
+            The maximum horizontal distance between words to be considered part of the same line, relative
+            to line height (as a proxy for font size).
+
+        Returns
+        -------
+        A list with one item for each phrase, that is either an OCRResult or None, if no match was found.
+        """
+
+        img = load_image(image)
+        res = [None for _ in phrases]
+
+        with log_perf("_detect"):
+            boxes = self._detect(img)
+
+        if len(boxes) == 0:
+            return res
+
+        if position_hints is not None:
+            boxes = filter_boxes_and_sort_by_proximity(
+                boxes,
+                tuple((t[0] * img.shape[1], t[1] * img.shape[0]) for t in position_hints),
+                max_dist=(position_max_dist * np.min(img.shape[:2])) if position_max_dist else np.max(img.shape[:2])
+            )
+        #else:
+        #    boxes = sorted(boxes, key=lambda b: min(abs(b.width / b.height - len(p) * x) for p in phrases))
+
+        crops = [crop_region(img, box) for box in boxes]
+
+        # Use a smaller batch size of three to support early exit:
+        ocr_results = []
+
+        with log_perf("_recognize and matching loop"):
+            for start in range(0, len(crops), 6):
+                batch = crops[start:start + 6]
+
+                if self._cls_session is not None:
+                    batch = self._classify(batch)
+
+                with log_perf("_recognize"):
+                    txts, scrs = self._recognize(batch)
+
+                with log_perf("matching"):
+                    ocr_results.extend([
+                        OCRResult(text=t, score=s, box=b)
+                        for t, s, b in zip(txts, scrs, boxes[start:start+6], strict=True)
+                        if t.strip()
+                    ])
+
+                    # Try simple matching first:
+                    for p_idx, p in enumerate(phrases):
+                        for r in ocr_results:
+                            if p.strip().lower() in r.text.strip().lower():
+                                res[p_idx] = r
+
+                    if any(r is None for r in res):
+                        arranged = arrange_text(
+                            ocr_results,
+                            line_cy_threshold=line_cy_threshold,
+                            word_dist_threshold=word_dist_threshold,
+                        )
+
+                        for p_idx, p in enumerate(phrases):
+                            if res[p_idx] is not None:
+                                continue
+
+                            if r := merge_phrase_boxes(arranged, p.split()):
+                                res[p_idx] = r
+                            elif 0 < fuzzy_match_min_similarity < 1 and (r := merge_phrase_boxes_fuzzy(arranged, p.split(), cutoff=fuzzy_match_min_similarity)):
+                                res[p_idx] = r
+                    else:
+                        # we've found all phrases; no need to dig further
+                        break
+
+        return res
+
+
 
     # ------------------------------------------------------------------
     # Internal steps
     # ------------------------------------------------------------------
 
-    def _detect(self, img: np.ndarray) -> np.ndarray:
+    def _detect(self, img: np.ndarray) -> list[BBox]:
         h, w = img.shape[:2]
 
         if min(h, w) < 960:
@@ -203,6 +294,18 @@ class PPOCRLite:
 
         with log_perf("_det_post"):
             boxes, _ = self._det_post(pred, (h, w))
+
+        # each box is (top-left, top-right, bottom-right, bottom-left) so far
+
+        boxes = [
+            BBox(
+                x=min(coord[0] for coord in b),
+                y=min(coord[1] for coord in b),
+                width=max(coord[0] for coord in b) - min(coord[0] for coord in b),
+                height=max(coord[1] for coord in b) - min(coord[1] for coord in b),
+            )
+            for b in boxes
+        ]
 
         return boxes  # (N, 4, 2)
 
@@ -278,21 +381,18 @@ def _build_decoder(session) -> CTCDecoder:
 # Find text helpers
 # ---------------------------------------------------------------------------
 
-def filter_boxes_and_sort_by_position(
-        boxes: np.ndarray,
+def filter_boxes_and_sort_by_proximity(
+        boxes: list[BBox],
         positions: Tuple[Tuple[float, float], ...],
         max_dist: int
-) -> List[OCRResult]:
-    def box_center(box: np.ndarray) -> np.ndarray:
-        # Compute the center of the box
-        return box.mean(axis=0)
-
+) -> List[BBox]:
     filtered = []
+    pos_arr = np.array(positions)
 
     for box in boxes:
-        center = box_center(box)
+        center = np.array((box.cx, box.cy))
         # Compute distances to all positions
-        dists = np.linalg.norm(np.array(positions) - center, axis=1)
+        dists = np.linalg.norm(pos_arr - center, axis=1)
         min_dist = dists.min()
         if min_dist <= max_dist:
             filtered.append((min_dist, box))
@@ -300,5 +400,5 @@ def filter_boxes_and_sort_by_position(
     # Sort by distance to the closest position
     filtered.sort(key=lambda x: x[0])
 
-    # Return only the OCRResult objects
+    # Return only the [BBox]es
     return [b for _, b in filtered]

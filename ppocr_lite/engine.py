@@ -135,7 +135,8 @@ class PPOCRLite:
             if t.strip()
         ]
 
-    def find_text_close_to(self, image: ImageInput, positions: list[tuple[float, float]], max_dist: float = 0.4):
+    def find_text_close_to(self, image: ImageInput, positions: list[tuple[float, float]], max_dist: float = 0.4,
+                           early_exit_if_all_found: list[str] | None = None):
         img = load_image(image)
 
         boxes = self._detect(img)
@@ -153,10 +154,27 @@ class PPOCRLite:
 
         crops = [crop_region(img, box) for box in boxes]
 
-        if self._cls_session is not None:
-            crops = self._classify(crops)
+        if early_exit_if_all_found:
+            # Use a smaller batch size of three to support early exit:
+            texts, scores = [], []
+            for start in range(0, len(crops), 3):
+                batch = crops[start:start+3]
 
-        texts, scores = self._recognize(crops)
+                if self._cls_session is not None:
+                    batch = self._classify(batch)
+
+                txts, scrs = self._recognize(batch)
+
+                texts.extend(txts)
+                scores.extend(scrs)
+
+                if all(w in texts for w in early_exit_if_all_found):
+                    # All words found; no need to recognize further
+                    break
+        else:
+            if self._cls_session is not None:
+                crops = self._classify(crops)
+            texts, scores = self._recognize(crops)
 
         return [
             OCRResult(text=t, score=s, box=b)

@@ -13,5 +13,5 @@ Typical usage::
 """
 
 from .engine import PPOCRLite
-import models
+from . import models
 from .text_handling import arrange_text

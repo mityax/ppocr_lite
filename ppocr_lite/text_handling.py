@@ -99,7 +99,6 @@ def merge_phrase_boxes(text_lines: list[list[OCRResult]], phrase_tokens: list[st
                         box=BBox.surrounding(tuple(w.box for w in window)),
                         score=sum(w.score for w in window) / len(window)
                     )
-                    break
 
                 # Once we've consumed more characters than the phrase, no match
                 # is possible starting at i – move on.q
@@ -150,6 +149,5 @@ def merge_phrase_boxes_fuzzy(text_lines: list[list[OCRResult]], phrase_tokens: l
                     box=BBox.surrounding(tuple(w.box for w in window)),
                     score=sum(w.score for w in window) / len(window)
                 )
-                break
 
     return ()

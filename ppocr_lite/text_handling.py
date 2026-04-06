@@ -131,10 +131,8 @@ def merge_phrase_boxes_fuzzy(text_lines: list[list[OCRResult]], phrase_tokens: l
         line_texts = [w.text.lower().replace(" ", "") for w in line]
         line_text_concat = ''.join(line_texts)
 
-        for j in range(0, min(len(line_text_concat) - len(phrase_concat), 1)):
+        for j in range(0, max(len(line_text_concat) - len(phrase_concat), 1)):
             matcher.set_seq2(line_text_concat[j: j + len(phrase_concat)])
-
-            print(f"Ratios for {phrase_concat} in {line_text_concat[j: j + len(phrase_concat)]}: {matcher.ratio()}")
 
             if matcher.real_quick_ratio() >= cutoff and \
                     matcher.quick_ratio() >= cutoff and \

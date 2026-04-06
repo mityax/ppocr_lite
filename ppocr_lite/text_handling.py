@@ -1,4 +1,5 @@
 import difflib
+from typing import Iterable
 
 from ppocr_lite.structs import OCRResult, BBox
 
@@ -65,7 +66,7 @@ def arrange_text(words: list[OCRResult], line_cy_threshold: float = 0.2,
     return lines
 
 
-def merge_phrase_boxes(text_lines: list[list[OCRResult]], phrase_tokens: list[str]) -> list[OCRResult]:
+def merge_phrase_boxes(text_lines: list[list[OCRResult]], phrase_tokens: list[str]) -> Iterable[OCRResult]:
     """
     Slide a variable-width window over the word list and return all bounding
     boxes where the concatenated word text matches the concatenated phrase
@@ -81,10 +82,9 @@ def merge_phrase_boxes(text_lines: list[list[OCRResult]], phrase_tokens: list[st
     """
 
     if not phrase_tokens:
-        return []
+        return ()
 
     phrase_concat = "".join(t.lower() for t in phrase_tokens)
-    matches: list[OCRResult] = []
 
     for line in text_lines:
         for i in range(len(line)):
@@ -94,11 +94,11 @@ def merge_phrase_boxes(text_lines: list[list[OCRResult]], phrase_tokens: list[st
 
                 if running == phrase_concat:
                     window = line[i: j + 1]
-                    matches.append(OCRResult(
+                    yield OCRResult(
                         text=' '.join(w.text for w in window),
                         box=BBox.surrounding(tuple(w.box for w in window)),
                         score=sum(w.score for w in window) / len(window)
-                    ))
+                    )
                     break
 
                 # Once we've consumed more characters than the phrase, no match
@@ -106,10 +106,10 @@ def merge_phrase_boxes(text_lines: list[list[OCRResult]], phrase_tokens: list[st
                 if len(running) > len(phrase_concat):
                     break
 
-    return matches
+    return ()
 
 
-def merge_phrase_boxes_fuzzy(text_lines: list[list[OCRResult]], phrase_tokens: list[str], cutoff: float = 0.9) -> list[OCRResult]:
+def merge_phrase_boxes_fuzzy(text_lines: list[list[OCRResult]], phrase_tokens: list[str], cutoff: float = 0.9) -> Iterable[OCRResult]:
     """
     A fallback to [merge_phrase_boxes()] that allows partial / substring word matches so
     that OCR misreads or slight variations still match (e.g. 'Subrnit' -> 'Submit').
@@ -119,9 +119,7 @@ def merge_phrase_boxes_fuzzy(text_lines: list[list[OCRResult]], phrase_tokens: l
 
     n = len(phrase_tokens)
     if n == 0:
-        return []
-
-    matches: list[OCRResult] = []
+        return ()
 
     phrase_concat = ''.join(phrase_tokens).lower().replace(" ", "")
     matcher = difflib.SequenceMatcher(a=phrase_concat)
@@ -147,11 +145,11 @@ def merge_phrase_boxes_fuzzy(text_lines: list[list[OCRResult]], phrase_tokens: l
                     if before < j + len(phrase_concat) < end_idx:
                         end_idx = i
                 window = line[start_idx: end_idx + 1]
-                matches.append(OCRResult(
+                yield OCRResult(
                     text=' '.join(w.text for w in window),
                     box=BBox.surrounding(tuple(w.box for w in window)),
                     score=sum(w.score for w in window) / len(window)
-                ))
+                )
                 break
 
-    return matches
+    return ()

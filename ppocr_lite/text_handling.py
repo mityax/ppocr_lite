@@ -1,5 +1,5 @@
 import difflib
-from typing import Iterable
+from typing import Iterator
 
 from ppocr_lite.structs import OCRResult, BBox
 
@@ -66,7 +66,7 @@ def arrange_text(words: list[OCRResult], line_cy_threshold: float = 0.2,
     return lines
 
 
-def merge_phrase_boxes(text_lines: list[list[OCRResult]], phrase_tokens: list[str]) -> Iterable[OCRResult]:
+def merge_phrase_boxes(text_lines: list[list[OCRResult]], phrase_tokens: list[str]) -> Iterator[OCRResult]:
     """
     Slide a variable-width window over the word list and return all bounding
     boxes where the concatenated word text matches the concatenated phrase
@@ -109,7 +109,7 @@ def merge_phrase_boxes(text_lines: list[list[OCRResult]], phrase_tokens: list[st
     return ()
 
 
-def merge_phrase_boxes_fuzzy(text_lines: list[list[OCRResult]], phrase_tokens: list[str], cutoff: float = 0.9) -> Iterable[OCRResult]:
+def merge_phrase_boxes_fuzzy(text_lines: list[list[OCRResult]], phrase_tokens: list[str], cutoff: float = 0.9) -> Iterator[OCRResult]:
     """
     A fallback to [merge_phrase_boxes()] that allows partial / substring word matches so
     that OCR misreads or slight variations still match (e.g. 'Subrnit' -> 'Submit').

@@ -262,10 +262,13 @@ class PPOCRLite:
                             if res[p_idx] is not None:
                                 continue
 
-                            if r := merge_phrase_boxes(arranged, p.split()):
-                                res[p_idx] = r
-                            elif 0 < fuzzy_match_min_similarity < 1 and (r := merge_phrase_boxes_fuzzy(arranged, p.split(), cutoff=fuzzy_match_min_similarity)):
-                                res[p_idx] = r
+                            res[p_idx] = next(merge_phrase_boxes(arranged, p.split()), None)
+
+                            if res[p_idx] is None and 0 < fuzzy_match_min_similarity < 1:
+                                res[p_idx] = next(
+                                    merge_phrase_boxes_fuzzy(arranged, p.split(), cutoff=fuzzy_match_min_similarity),
+                                    None,
+                                )
                     else:
                         # we've found all phrases; no need to dig further
                         break
